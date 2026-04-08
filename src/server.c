@@ -30,11 +30,12 @@ int main() {
 	    perror("bind failed");  
 	    exit(1);
 	}
-log_event("INFO", "DHCP Server started");
+    log_event("INFO", "DHCP Server started");
 	load_config();
 	init_leases();
     while (1) {
         dhcp_packet_t pkt, response;
+        memset(&response, 0, sizeof(response));
         recvfrom(sockfd, buffer, BUFFER_SIZE, 0,
                  (struct sockaddr*)&client_addr, &addr_len);
 
@@ -45,10 +46,21 @@ log_event("INFO", "DHCP Server started");
 
             if (!ip) {
                 log_event("WARN", "IP pool exhausted");
+
+                response.msg_type=DHCP_NAK;
+                response.lease_time = get_lease_time();
+                strcpy(response.client_id, pkt.client_id);
+
+                serialize_packet(&response, buffer);
+
+                sendto(sockfd, buffer, sizeof(dhcp_packet_t), 0,(struct sockaddr*)&client_addr, addr_len);
+
+                log_event("INFO", "NAK Sent");
+
                 continue;
             }
 
-            memset(&response, 0, sizeof(response));
+            
 
             response.msg_type = DHCP_OFFER;
             strcpy(response.client_id, pkt.client_id);
@@ -60,8 +72,7 @@ log_event("INFO", "DHCP Server started");
 
             serialize_packet(&response, buffer);
 
-            sendto(sockfd, buffer, sizeof(dhcp_packet_t), 0,
-                   (struct sockaddr*)&client_addr, addr_len);
+            sendto(sockfd, buffer, sizeof(dhcp_packet_t), 0,(struct sockaddr*)&client_addr, addr_len);
 
             char logbuf[128];
             sprintf(logbuf, "OFFER → %s : %s", pkt.client_id, ip);

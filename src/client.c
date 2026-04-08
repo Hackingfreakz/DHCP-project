@@ -1,4 +1,5 @@
 #include "../include/dhcp.h"
+#include <stdio.h>
 
 #define SERVER_PORT 1111
 #define BUFFER_SIZE 1024
@@ -41,12 +42,13 @@ int main(int argc, char *argv[]) {
 
     log_event("INFO", "Client started");
 
-    
+    discover:
     memset(&pkt, 0, sizeof(pkt));
     pkt.msg_type = DHCP_DISCOVER;
     strcpy(pkt.client_id, argv[1]);
 
     serialize_packet(&pkt, buffer);
+    
     
     
     sendto(sockfd, buffer, sizeof(dhcp_packet_t), 0,
@@ -58,15 +60,22 @@ int main(int argc, char *argv[]) {
     struct sockaddr_in from_addr;
     socklen_t addr_len = sizeof(from_addr);
 
-    if (recvfrom(sockfd, buffer, BUFFER_SIZE, 0,
-                 (struct sockaddr*)&from_addr, &addr_len) < 0) {
+    if (recvfrom(sockfd, buffer, BUFFER_SIZE, 0,(struct sockaddr*)&from_addr, &addr_len) < 0) {
         perror("Failed to receive OFFER");
         exit(1);
     }
 
     deserialize_packet(buffer, &response);
-
-    if (response.msg_type != DHCP_OFFER) {
+    if(response.msg_type == DHCP_NAK ){
+        printf("IP Pool exhausted");
+        log_event("INFO","NAK received");
+        sleep(response.lease_time);
+        goto discover;
+    }
+    else if(response.msg_type == DHCP_OFFER){
+        ;
+    }
+    else{
         log_event("ERROR", "Invalid OFFER received");
         exit(1);
     }
@@ -111,6 +120,8 @@ int main(int argc, char *argv[]) {
 
 
     printf("\n IP Assigned: %s\n", response.assigned_ip);
+    printf(" Subnet Mask: %s\n",response.subnet_mask);
+    printf(" Default Gateway: %s\n",response.gateway);
     printf(" Lease Time: %d seconds\n\n", response.lease_time);
 
     close(sockfd);

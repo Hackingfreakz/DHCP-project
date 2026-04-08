@@ -16,7 +16,8 @@ typedef enum {
     DHCP_DISCOVER = 1,
     DHCP_OFFER,
     DHCP_REQUEST,
-    DHCP_ACK
+    DHCP_ACK,
+    DHCP_NAK
 } dhcp_msg_type_t;
 
 
