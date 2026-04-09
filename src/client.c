@@ -1,5 +1,6 @@
 #include "../include/dhcp.h"
-#include <stdio.h>
+#include <time.h>
+
 
 #define SERVER_PORT 1111
 #define BUFFER_SIZE 1024
@@ -72,14 +73,11 @@ int main(int argc, char *argv[]) {
         sleep(response.lease_time);
         goto discover;
     }
-    else if(response.msg_type == DHCP_OFFER){
-        ;
-    }
-    else{
+    else if(response.msg_type != DHCP_OFFER){
         log_event("ERROR", "Invalid OFFER received");
         exit(1);
     }
-
+    
     char offered_ip[16];
     strcpy(offered_ip, response.assigned_ip);
 
@@ -87,7 +85,7 @@ int main(int argc, char *argv[]) {
     sprintf(logbuf, "OFFER received: %s", offered_ip);
     log_event("INFO", logbuf);
 
-   
+    //sleep(20);
     memset(&pkt, 0, sizeof(pkt));
     pkt.msg_type = DHCP_REQUEST;
     strcpy(pkt.client_id, argv[1]);
@@ -97,7 +95,7 @@ int main(int argc, char *argv[]) {
 
     sendto(sockfd, buffer, sizeof(dhcp_packet_t), 0,
            (struct sockaddr*)&from_addr, addr_len);
-    printf("DEBUG requested_ip: %s\n", offered_ip);
+    //printf("DEBUG requested_ip: %s\n", offered_ip);
     log_event("INFO", "REQUEST sent");
 
 
@@ -113,9 +111,13 @@ int main(int argc, char *argv[]) {
         log_event("ERROR", "Invalid ACK received");
         exit(1);
     }
+    char time_buff[64];
 
-    sprintf(logbuf, "ACK received: IP=%s Lease=%d",
-            response.assigned_ip, response.lease_time);
+    time_t now=time(NULL)+response.lease_time;
+    struct tm *t = localtime(&now);
+    strftime(time_buff,sizeof(time_buff), "%H:%M:%S",t);
+    sprintf(logbuf, "ACK received: IP=%s Lease=%d Expiry time=%s client_id=%s",
+            response.assigned_ip, response.lease_time,time_buff,response.client_id);
     log_event("INFO", logbuf);
 
 

@@ -3,16 +3,15 @@
 #define SERVER_PORT 1111
 #define BUFFER_SIZE 1024
 
-int sockfd;
-struct sockaddr_in server_addr, client_addr;
+
 
  
-//void log_event(const char *level, const char *msg);
 
 int main() {
     char buffer[BUFFER_SIZE];
+    int sockfd;
+    struct sockaddr_in server_addr, client_addr;
     socklen_t addr_len = sizeof(client_addr);
-
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd < 0) {
 	    perror("socket failed");

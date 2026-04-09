@@ -1,7 +1,4 @@
-#ifndef DHCP_H
-#define DHCP_H
-
-#include <unistd.h>
+	#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,6 +17,11 @@ typedef enum {
     DHCP_NAK
 } dhcp_msg_type_t;
 
+typedef enum {
+    FREE = 0,
+    OFFERED,
+    ALLOCATED
+} lease_state_t;
 
 typedef struct {
     dhcp_msg_type_t msg_type;
@@ -38,8 +40,8 @@ typedef struct {
 typedef struct {
     char ip[IP_LEN];
     char client_id[MAX_CLIENT_ID];
+    lease_state_t state;
     time_t expiry;
-    int allocated;
 } lease_t;
 
 
@@ -53,4 +55,5 @@ void load_config();
 void init_leases();
 char* get_ip_from_lease(char *client_id);   
 int confirm_lease(char *client_id, char *ip);
-#endif
+
+

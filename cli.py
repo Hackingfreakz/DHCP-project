@@ -6,13 +6,25 @@ SERVER_EXEC = "./server"
 
 server_process = None
 
-
-# -------- WRITE CONFIG --------
+def is_valid_ip(ip_list):
+    for i in ip_list:
+        if int(i) < 0 and int(i) >255:
+            return False
+    return True
+    
 def write_config():
     print("\nEnter DHCP Configuration:")
 
     pool_start = input("POOL_START: ")
     pool_end = input("POOL_END: ")
+    
+    if not is_valid_ip(pool_start):
+        print("Enter valid ip")
+        return
+    if not is_valid_ip(pool_end):
+        print("Enter valid ip")
+        return
+        
     subnet = input("SUBNET_MASK: ")
     gateway = input("GATEWAY: ")
     lease = input("LEASE_TIME (seconds): ")
@@ -27,7 +39,7 @@ def write_config():
     print("Configuration saved.\n")
 
 
-# -------- START SERVER --------
+
 def start_server():
     global server_process
 
@@ -39,7 +51,7 @@ def start_server():
     print(" Server started\n")
 
 
-# -------- STOP SERVER --------
+
 def stop_server():
     global server_process
 
@@ -52,24 +64,24 @@ def stop_server():
     print(" Server stopped\n")
 
 
-# -------- SHOW LEASES --------
+
 def show_leases():
-    print("\n📄 Current Leases:\n")
+    print("\n Current Leases:\n")
 
     try:
         with open("logs/dhcp.log", "r") as f:
             lines = f.readlines()
 
-        # Filter only ACK logs (final allocations)
+
         for line in lines:
-            if "ACK" in line:
+            if "Expiry time" in line:
                 print(line.strip())
 
     except FileNotFoundError:
         print("No logs found\n")
 
 
-# -------- CLI LOOP --------
+
 def main():
     while True:
         print("\nCommands:")
