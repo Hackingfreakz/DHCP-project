@@ -37,5 +37,5 @@ void log_event(const char * level,
 
     fclose(fp);
 
-    //printf("[%s] %s: %s\n", time_buf, level, msg);
+    printf("[%s] %s: %s\n", time_buf, level, msg);
 }

@@ -93,7 +93,7 @@ int main(int argc, char * argv[]) {
     if (response.msg_type == DHCP_NAK) {
         printf("IP Pool exhausted");
         log_event("INFO", "NAK received");
-        sleep(response.lease_time);
+        sleep(20);
         goto discover;
     } else if (response.msg_type != DHCP_OFFER) {
         log_event("ERROR", "Invalid OFFER received");

@@ -121,7 +121,7 @@ int main() {
             log_event("INFO", logbuf);
         } else if (pkt.msg_type == DHCP_RELEASE) {
             log_event("INFO", "RELEASE received");
-            lease_free(pkt.requested_ip);
+            lease_free(pkt.client_id);
             log_event("INFO", "IP freed");
         }
     }

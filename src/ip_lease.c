@@ -80,8 +80,10 @@ void cleanup_leases() {
     }
 }
 
-char * get_ip_from_lease(char * client_id) {
+char *get_ip_from_lease(char *client_id) {
     cleanup_leases();
+
+    // If client already has IP → return same
     for (int i = 0; i < pool_size; i++) {
         if (leases[i].allocated &&
             strcmp(leases[i].client_id, client_id) == 0) {
@@ -89,8 +91,9 @@ char * get_ip_from_lease(char * client_id) {
         }
     }
 
+    // Immediately reuse ANY free slot
     for (int i = 0; i < pool_size; i++) {
-        if (!leases[i].allocated) {
+        if (leases[i].allocated == 0) {
             leases[i].allocated = 1;
             strcpy(leases[i].client_id, client_id);
             leases[i].expiry = time(NULL) + lease_time;
@@ -100,7 +103,6 @@ char * get_ip_from_lease(char * client_id) {
 
     return NULL;
 }
-
 int confirm_lease(char * client_id, char * ip) {
     cleanup_leases();
     for (int i = 0; i < pool_size; i++) {
@@ -124,12 +126,12 @@ int confirm_lease(char * client_id, char * ip) {
 
     return 0;
 }
-void lease_free(char * ip) {
+void lease_free(char * client_id) {
     for (int i = 0; i < pool_size; i++) {
-        if (strcmp(leases[i].ip, ip) == 0) {
+        if (strcmp(leases[i].client_id, client_id) == 0) {
             leases[i].allocated = 0;
-            leases[i].expiry = 0;
-            leases[i].client_id[0] = '\0';
+            leases[i].expiry = time(NULL);
+            memset(leases[i].client_id, 0, MAX_CLIENT_ID);
             return;
         }
     }
