@@ -6,28 +6,38 @@ SERVER_EXEC = "./server"
 
 server_process = None
 
+
 def is_valid_ip(ip_list):
     for i in ip_list:
-        if int(i) < 0 and int(i) >255:
+        if int(i) < 0 and int(i) > 255:
             return False
     return True
-    
+
+
 def write_config():
     print("\nEnter DHCP Configuration:")
 
     pool_start = input("POOL_START: ")
     pool_end = input("POOL_END: ")
-    
-    if not is_valid_ip(pool_start):
-        print("Enter valid ip")
-        return
-    if not is_valid_ip(pool_end):
-        print("Enter valid ip")
-        return
-        
     subnet = input("SUBNET_MASK: ")
     gateway = input("GATEWAY: ")
     lease = input("LEASE_TIME (seconds): ")
+
+
+    if not is_valid_ip(pool_start.split(".")):
+        print("Enter valid ip")
+        return
+    if not is_valid_ip(pool_end.split(".")):
+        print("Enter valid ip")
+        return
+    if not is_valid_ip(subnet.split(".")):
+        print("Enter valid ip")
+        return
+    if not is_valid_ip(gateway.split(".")):
+        print("Enter valid ip")
+        return
+ 
+
 
     with open(CONFIG_FILE, "w") as f:
         f.write(f"POOL_START={pool_start}\n")
@@ -39,7 +49,6 @@ def write_config():
     print("Configuration saved.\n")
 
 
-
 def start_server():
     global server_process
 
@@ -47,9 +56,8 @@ def start_server():
         print(" Server already running")
         return
 
-    server_process = subprocess.Popen([SERVER_EXEC])
+    server_process = subprocess.Popen(["gnome-terminal","--",SERVER_EXEC])
     print(" Server started\n")
-
 
 
 def stop_server():
@@ -64,14 +72,12 @@ def stop_server():
     print(" Server stopped\n")
 
 
-
 def show_leases():
     print("\n Current Leases:\n")
 
     try:
         with open("logs/dhcp.log", "r") as f:
             lines = f.readlines()
-
 
         for line in lines:
             if "Expiry time" in line:
@@ -81,7 +87,6 @@ def show_leases():
         print("No logs found\n")
 
 
-
 def main():
     while True:
         print("\nCommands:")
@@ -89,7 +94,7 @@ def main():
         print("2. start")
         print("3. stop")
         print("4. show leases")
-        print("5. exit")
+        print("5. exit");
 
         cmd = input("\nEnter command: ").strip().lower()
 
@@ -110,3 +115,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
