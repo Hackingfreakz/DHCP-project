@@ -1,7 +1,8 @@
 #include "../include/dhcp.h"
 
-#define MAX_POOL 256
 
+#define MAX_POOL 256
+#define OFFER_TIMEOUT 10
 lease_t leases[MAX_POOL];
 char ip_pool[MAX_POOL][IP_LEN];
 int pool_size = 0;
@@ -62,10 +63,10 @@ void load_config() {
 
 void init_leases() {
     for (int i = 0; i < pool_size; i++) {
-        leases[i].allocated = 0;
+        leases[i].state = FREE;
         leases[i].expiry = 0;
         strcpy(leases[i].ip, ip_pool[i]);
-        strcpy(leases[i].client_id, "");
+        leases[i].client_id[0] = '\0';
     }
 }
 
@@ -73,50 +74,55 @@ void cleanup_leases() {
     time_t now = time(NULL);
 
     for (int i = 0; i < pool_size; i++) {
-        if (leases[i].allocated && leases[i].expiry < now) {
-            leases[i].allocated = 0;
-            strcpy(leases[i].client_id, "");
+        if ((leases[i].state == OFFERED || leases[i].state == ALLOCATED) &&
+            leases[i].expiry < now) {
+
+            leases[i].state = FREE;
+            leases[i].client_id[0] = '\0';
         }
     }
 }
-
-char *get_ip_from_lease(char *client_id) {
+char * get_ip_from_lease(char * client_id) {
     cleanup_leases();
 
-    // If client already has IP → return same
+    // If already has IP
     for (int i = 0; i < pool_size; i++) {
-        if (leases[i].allocated &&
+        if ((leases[i].state == ALLOCATED || leases[i].state == OFFERED) &&
             strcmp(leases[i].client_id, client_id) == 0) {
             return leases[i].ip;
         }
     }
 
-    // Immediately reuse ANY free slot
+    // Give new IP as OFFER (temporary)
     for (int i = 0; i < pool_size; i++) {
-        if (leases[i].allocated == 0) {
-            leases[i].allocated = 1;
+        if (leases[i].state == FREE) {
+            leases[i].state = OFFERED;
             strcpy(leases[i].client_id, client_id);
-            leases[i].expiry = time(NULL) + lease_time;
+            leases[i].expiry = time(NULL) + OFFER_TIMEOUT;
+
             return leases[i].ip;
         }
     }
 
     return NULL;
 }
+
 int confirm_lease(char * client_id, char * ip) {
     cleanup_leases();
-    for (int i = 0; i < pool_size; i++) {
-        if (strcmp(ip_pool[i], ip) == 0) {
 
-            if (leases[i].allocated &&
+    for (int i = 0; i < pool_size; i++) {
+        if (strcmp(leases[i].ip, ip) == 0) {
+
+            if (leases[i].state == OFFERED &&
                 strcmp(leases[i].client_id, client_id) == 0) {
+
+                leases[i].state = ALLOCATED;
+                leases[i].expiry = time(NULL) + lease_time;
                 return 1;
             }
 
-            if (!leases[i].allocated) {
-                leases[i].allocated = 1;
-                strcpy(leases[i].client_id, client_id);
-                leases[i].expiry = time(NULL) + lease_time;
+            if (leases[i].state == ALLOCATED &&
+                strcmp(leases[i].client_id, client_id) == 0) {
                 return 1;
             }
 
@@ -129,26 +135,27 @@ int confirm_lease(char * client_id, char * ip) {
 void lease_free(char * client_id) {
     for (int i = 0; i < pool_size; i++) {
         if (strcmp(leases[i].client_id, client_id) == 0) {
-            leases[i].allocated = 0;
-            leases[i].expiry = time(NULL);
-            memset(leases[i].client_id, 0, MAX_CLIENT_ID);
+            leases[i].state = FREE;
+            leases[i].expiry = 0;
+            leases[i].client_id[0] = '\0';
             return;
         }
     }
 }
 int renew_lease(char * client_id, char * ip) {
     cleanup_leases();
+
     for (int i = 0; i < pool_size; i++) {
         if (strcmp(leases[i].ip, ip) == 0 &&
-            leases[i].allocated &&
+            leases[i].state == ALLOCATED &&
             strcmp(leases[i].client_id, client_id) == 0) {
+
             leases[i].expiry = time(NULL) + lease_time;
             return 1;
         }
     }
     return 0;
 }
-
 char * get_subnet_mask() {
     return subnet_mask;
 }

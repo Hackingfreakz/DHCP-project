@@ -31,18 +31,24 @@ typedef struct {
 }
 dhcp_packet_t;
 
+typedef enum {
+    FREE = 0,
+        OFFERED,
+        ALLOCATED
+}
+state;
+
 typedef struct {
     char ip[IP_LEN];
     char client_id[MAX_CLIENT_ID];
     time_t expiry;
-    int allocated;
+    state state;
 }
 lease_t;
 
 void serialize_packet(dhcp_packet_t * pkt, char * buffer);
 void deserialize_packet(char * buffer, dhcp_packet_t * pkt);
-void log_event(const char * level,
-    const char * msg);
+void log_event(const char * level, const char * msg);
 char * get_subnet_mask();
 char * get_gateway();
 int get_lease_time();
