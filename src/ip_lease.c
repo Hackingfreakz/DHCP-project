@@ -60,7 +60,25 @@ void load_config() {
         pool_size++;
     }
 }
+void save_leases_to_file() {
+    FILE *fp = fopen("leases.txt", "w");
+    if (!fp) return;
 
+    time_t now = time(NULL);
+
+    for (int i = 0; i < pool_size; i++) {
+        if (leases[i].state == ALLOCATED &&
+            leases[i].expiry > now) {   
+
+            fprintf(fp, "%s %s %ld\n",
+                    leases[i].client_id,
+                    leases[i].ip,
+                    leases[i].expiry);
+        }
+    }
+
+    fclose(fp);
+}
 void init_leases() {
     for (int i = 0; i < pool_size; i++) {
         leases[i].state = FREE;
@@ -85,7 +103,7 @@ void cleanup_leases() {
 char * get_ip_from_lease(char * client_id) {
     cleanup_leases();
 
-    // If already has IP
+
     for (int i = 0; i < pool_size; i++) {
         if ((leases[i].state == ALLOCATED || leases[i].state == OFFERED) &&
             strcmp(leases[i].client_id, client_id) == 0) {
@@ -93,7 +111,7 @@ char * get_ip_from_lease(char * client_id) {
         }
     }
 
-    // Give new IP as OFFER (temporary)
+
     for (int i = 0; i < pool_size; i++) {
         if (leases[i].state == FREE) {
             leases[i].state = OFFERED;
@@ -109,7 +127,7 @@ char * get_ip_from_lease(char * client_id) {
 
 int confirm_lease(char * client_id, char * ip) {
     cleanup_leases();
-
+    
     for (int i = 0; i < pool_size; i++) {
         if (strcmp(leases[i].ip, ip) == 0) {
 
@@ -118,6 +136,7 @@ int confirm_lease(char * client_id, char * ip) {
 
                 leases[i].state = ALLOCATED;
                 leases[i].expiry = time(NULL) + lease_time;
+                save_leases_to_file();
                 return 1;
             }
 
@@ -129,6 +148,7 @@ int confirm_lease(char * client_id, char * ip) {
             return 0;
         }
     }
+    
 
     return 0;
 }

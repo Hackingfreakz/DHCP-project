@@ -1,18 +1,20 @@
 import os
 import subprocess
+import signal
 
 CONFIG_FILE = "config/server.conf"
 SERVER_EXEC = "./server"
-
-server_process = None
-
+PID_FILE = "server.pid"
 
 def is_valid_ip(ip_list):
-    for i in ip_list:
-        if int(i) < 0 and int(i) > 255:
-            return False
-    return True
-
+    try:
+        for i in ip_list:
+            val = int(i)
+            if val < 0 or val > 255:
+                return False
+        return len(ip_list) == 4
+    except:
+        return False
 
 def write_config():
     print("\nEnter DHCP Configuration:")
@@ -23,21 +25,18 @@ def write_config():
     gateway = input("GATEWAY: ")
     lease = input("LEASE_TIME (seconds): ")
 
-
     if not is_valid_ip(pool_start.split(".")):
-        print("Enter valid ip")
+        print("Invalid POOL_START")
         return
     if not is_valid_ip(pool_end.split(".")):
-        print("Enter valid ip")
+        print("Invalid POOL_END")
         return
     if not is_valid_ip(subnet.split(".")):
-        print("Enter valid ip")
+        print("Invalid SUBNET_MASK")
         return
     if not is_valid_ip(gateway.split(".")):
-        print("Enter valid ip")
+        print("Invalid GATEWAY")
         return
- 
-
 
     with open(CONFIG_FILE, "w") as f:
         f.write(f"POOL_START={pool_start}\n")
@@ -48,44 +47,62 @@ def write_config():
 
     print("Configuration saved.\n")
 
-
 def start_server():
-    global server_process
-
-    if server_process is not None:
-        print(" Server already running")
+    if os.path.exists(PID_FILE):
+        print("Server already running")
         return
 
-    server_process = subprocess.Popen(["gnome-terminal","--",SERVER_EXEC])
-    print(" Server started\n")
+    proc = subprocess.Popen([SERVER_EXEC])
+    with open(PID_FILE, "w") as f:
+        f.write(str(proc.pid))
 
+    print(f"Server started (PID: {proc.pid})\n")
 
 def stop_server():
-    global server_process
-
-    if server_process is None:
-        print(" Server not running")
+    if not os.path.exists(PID_FILE):
+        print("Server not running")
         return
 
-    server_process.terminate()
-    server_process = None
-    print(" Server stopped\n")
+    try:
+        with open(PID_FILE, "r") as f:
+            pid = int(f.read())
 
+        os.kill(pid, signal.SIGTERM)
+        os.remove(PID_FILE)
+
+        print("Server stopped\n")
+
+    except ProcessLookupError:
+        print("Process already stopped")
+    except Exception as e:
+        print("Error stopping server:", e)
 
 def show_leases():
-    print("\n Current Leases:\n")
+    print("\nCurrent Leases:\n")
 
     try:
-        with open("logs/dhcp.log", "r") as f:
+        with open("leases.txt", "r") as f:
             lines = f.readlines()
 
+        if not lines:
+            print("No active leases\n")
+            return
+
         for line in lines:
-            if "Expiry time" in line:
-                print(line.strip())
+            client, ip, expiry = line.strip().split()
+
+            import time
+            expiry_time = time.strftime(
+                "%Y-%m-%d %H:%M:%S",
+                time.localtime(int(expiry))
+            )
+
+            print(f"Client: {client} | IP: {ip} | Expiry: {expiry_time}")
+
+        print()
 
     except FileNotFoundError:
-        print("No logs found\n")
-
+        print("No lease file found\n")
 
 def main():
     while True:
@@ -94,25 +111,28 @@ def main():
         print("2. start")
         print("3. stop")
         print("4. show leases")
-        print("5. exit");
+        print("5. exit")
 
         cmd = input("\nEnter command: ").strip().lower()
 
         if cmd == "config":
             write_config()
+
         elif cmd == "start":
             start_server()
+
         elif cmd == "stop":
             stop_server()
+
         elif cmd == "show leases":
             show_leases()
+
         elif cmd == "exit":
             stop_server()
             break
+
         else:
             print("Invalid command")
 
-
 if __name__ == "__main__":
     main()
-
