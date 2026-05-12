@@ -52,7 +52,7 @@ def start_server():
         print("Server already running")
         return
 
-    proc = subprocess.Popen([SERVER_EXEC])
+    proc = subprocess.Popen(["gnome-terminal","--",SERVER_EXEC])
     with open(PID_FILE, "w") as f:
         f.write(str(proc.pid))
 
@@ -64,12 +64,7 @@ def stop_server():
         return
 
     try:
-        with open(PID_FILE, "r") as f:
-            pid = int(f.read())
-
-        os.kill(pid, signal.SIGTERM)
-        os.remove(PID_FILE)
-
+        subprocess.run(["pkill","server"])
         print("Server stopped\n")
 
     except ProcessLookupError:
@@ -89,15 +84,9 @@ def show_leases():
             return
 
         for line in lines:
-            client, ip, expiry = line.strip().split()
+            client, ip, expiry_date,expiry_time = line.strip().split()
 
-            import time
-            expiry_time = time.strftime(
-                "%Y-%m-%d %H:%M:%S",
-                time.localtime(int(expiry))
-            )
-
-            print(f"Client: {client} | IP: {ip} | Expiry: {expiry_time}")
+            print(f"Client: {client} | IP: {ip} | Expiry: {expiry_date} {expiry_time}")
 
         print()
 

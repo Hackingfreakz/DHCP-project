@@ -5,6 +5,13 @@
 #include <arpa/inet.h>
 #include <time.h>
 #include <sys/stat.h>
+#include <netinet/udp.h>
+#include <netinet/ip.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <linux/if_packet.h>
+#include <net/ethernet.h>
+#include <net/if.h>
 
 #define MAX_CLIENT_ID 32
 #define IP_LEN 16
@@ -28,13 +35,14 @@ typedef struct {
     char subnet_mask[IP_LEN];
     char gateway[IP_LEN];
     int lease_time;
+    char chadrr[6];
 }
 dhcp_packet_t;
 
 typedef enum {
     FREE = 0,
-        OFFERED,
-        ALLOCATED
+    OFFERED,
+    ALLOCATED
 }
 state;
 
@@ -56,5 +64,6 @@ void load_config();
 void lease_free(char * ip);
 int renew_lease(char * client_id, char * ip);
 void init_leases();
+void cleanup_leases();
 char * get_ip_from_lease(char * client_id);
 int confirm_lease(char * client_id, char * ip);

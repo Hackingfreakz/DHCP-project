@@ -1,7 +1,7 @@
 #include "../include/dhcp.h"
 
 #define LOG_FILE "logs/dhcp.log"
-#define MAX_LOG_SIZE 100000 // ~100 KB
+#define MAX_LOG_SIZE 100000 
 
 long get_file_size(const char * filename) {
     struct stat st;

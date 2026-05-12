@@ -2,7 +2,8 @@
 
 
 #define MAX_POOL 256
-#define OFFER_TIMEOUT 10
+#define OFFER_TIMEOUT 30
+
 lease_t leases[MAX_POOL];
 char ip_pool[MAX_POOL][IP_LEN];
 int pool_size = 0;
@@ -68,12 +69,18 @@ void save_leases_to_file() {
 
     for (int i = 0; i < pool_size; i++) {
         if (leases[i].state == ALLOCATED &&
-            leases[i].expiry > now) {   
+            leases[i].expiry > now) {
 
-            fprintf(fp, "%s %s %ld\n",
+            char time_str[64];
+            struct tm *tm_info = localtime(&leases[i].expiry);
+
+            strftime(time_str, sizeof(time_str),
+                     "%Y-%m-%d %H:%M:%S", tm_info);
+
+            fprintf(fp, "%s %s %s\n",
                     leases[i].client_id,
                     leases[i].ip,
-                    leases[i].expiry);
+                    time_str);
         }
     }
 
@@ -92,10 +99,20 @@ void cleanup_leases() {
     time_t now = time(NULL);
 
     for (int i = 0; i < pool_size; i++) {
-        if ((leases[i].state == OFFERED || leases[i].state == ALLOCATED) &&
+
+        if (leases[i].state == OFFERED &&
             leases[i].expiry < now) {
 
             leases[i].state = FREE;
+            leases[i].expiry = 0;
+            leases[i].client_id[0] = '\0';
+        }
+
+        else if (leases[i].state == ALLOCATED &&
+                 leases[i].expiry < now) {
+
+            leases[i].state = FREE;
+            leases[i].expiry = 0;
             leases[i].client_id[0] = '\0';
         }
     }
@@ -124,56 +141,69 @@ char * get_ip_from_lease(char * client_id) {
 
     return NULL;
 }
-
-int confirm_lease(char * client_id, char * ip) {
+int confirm_lease(char *client_id, char *ip) {
     cleanup_leases();
-    
-    for (int i = 0; i < pool_size; i++) {
-        if (strcmp(leases[i].ip, ip) == 0) {
+    time_t now = time(NULL);
 
-            if (leases[i].state == OFFERED &&
-                strcmp(leases[i].client_id, client_id) == 0) {
+    for (int i = 0; i < pool_size; i++) {
+
+        if (strcmp(leases[i].ip, ip) == 0) {
+            if (leases[i].state == FREE ||
+                (leases[i].state == OFFERED &&
+                 strcmp(leases[i].client_id, client_id) == 0) ||
+                (leases[i].state == ALLOCATED &&
+                 strcmp(leases[i].client_id, client_id) == 0)) {
 
                 leases[i].state = ALLOCATED;
-                leases[i].expiry = time(NULL) + lease_time;
-                save_leases_to_file();
-                return 1;
-            }
+                strcpy(leases[i].client_id, client_id);
+                leases[i].expiry = now + lease_time;
 
-            if (leases[i].state == ALLOCATED &&
-                strcmp(leases[i].client_id, client_id) == 0) {
+                save_leases_to_file();
                 return 1;
             }
 
             return 0;
         }
     }
-    
 
     return 0;
 }
-void lease_free(char * client_id) {
+
+void lease_free(char *client_id) {
     for (int i = 0; i < pool_size; i++) {
         if (strcmp(leases[i].client_id, client_id) == 0) {
+
             leases[i].state = FREE;
             leases[i].expiry = 0;
             leases[i].client_id[0] = '\0';
+
+            save_leases_to_file();
+
             return;
         }
     }
 }
-int renew_lease(char * client_id, char * ip) {
-    cleanup_leases();
+int renew_lease(char *client_id, char *ip) {
+    time_t now = time(NULL);
 
     for (int i = 0; i < pool_size; i++) {
+
         if (strcmp(leases[i].ip, ip) == 0 &&
-            leases[i].state == ALLOCATED &&
             strcmp(leases[i].client_id, client_id) == 0) {
 
-            leases[i].expiry = time(NULL) + lease_time;
-            return 1;
+            if (leases[i].state == ALLOCATED) {
+
+                leases[i].state = ALLOCATED; 
+                leases[i].expiry = now + lease_time;
+
+                save_leases_to_file();
+                return 1;
+            }
+
+            return 0;
         }
     }
+
     return 0;
 }
 char * get_subnet_mask() {
